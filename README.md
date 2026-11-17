@@ -49,7 +49,8 @@ and lets you switch items back to online-only, removing the downloaded copies.
    Do not disable Gatekeeper globally.
 4. The unbox icon appears in the menu bar. Turn on **Launch at login** in Settings if you like.
 
-Later versions install from inside the app.
+Later versions install from inside the app. If you use an outgoing firewall such as LuLu or Little Snitch,
+allow unbox to connect to `github.com` – otherwise update checks cannot reach the release feed.
 
 ## Using unbox
 
@@ -145,6 +146,10 @@ scripts/release.py 1.0.1 2             # sets the version, builds, signs and wri
 git commit -am "Release 1.0.1"
 scripts/release.py 1.0.1 2 --publish   # tags the commit and creates the GitHub release
 ```
+
+After publishing, `scripts/check-update.sh` marks a copy of the app as version 0.9.0 and lets Sparkle update
+it from the live GitHub release without any UI – feed, download, EdDSA signature and replacement included.
+The installed app is not touched.
 
 Release notes are read from `release-notes/<version>.md`. The ZIP is signed with the Sparkle EdDSA key
 (Keychain account `unbox-Releases`, or the exported key in `~/.config/unbox/sparkle_private_key`), and the
