@@ -71,14 +71,14 @@ public final class FileProviderBridge: @unchecked Sendable {
     }
 
     public func item(at url: URL) async throws -> FileProviderItemInfo {
-        guard let manager, canReadItems else { throw DeboxError.fileProviderUnavailable }
+        guard let manager, canReadItems else { throw UnboxError.fileProviderUnavailable }
         let fetch = unsafeBitCast(manager.method(for: fetchSelector), to: FetchFn.self)
         let raw: NSObject = try await withCheckedThrowingContinuation { continuation in
             fetch(manager, fetchSelector, url as NSURL) { item, error in
                 if let item {
                     continuation.resume(returning: item)
                 } else {
-                    continuation.resume(throwing: error ?? DeboxError.itemNotInBox(url.path))
+                    continuation.resume(throwing: error ?? UnboxError.itemNotInBox(url.path))
                 }
             }
         }
@@ -86,23 +86,23 @@ public final class FileProviderBridge: @unchecked Sendable {
     }
 
     public func perform(_ action: BoxAction, on item: FileProviderItemInfo, timeout: TimeInterval = 120) async throws {
-        guard let manager, let actionClass, canPerformActions else { throw DeboxError.fileProviderUnavailable }
+        guard let manager, let actionClass, canPerformActions else { throw UnboxError.fileProviderUnavailable }
 
         let identifier = "\(item.providerID).\(action.rawValue)"
         guard let allocated = actionClass.perform(NSSelectorFromString("alloc"))?.takeUnretainedValue() as? NSObject else {
-            throw DeboxError.fileProviderUnavailable
+            throw UnboxError.fileProviderUnavailable
         }
         let initAction = unsafeBitCast(allocated.method(for: initActionSelector), to: InitActionFn.self)
         guard let operation = initAction(allocated, initActionSelector, identifier as NSString,
                                          item.providerDomainID as NSString, [item.itemIdentifier] as NSArray) else {
-            throw DeboxError.fileProviderUnavailable
+            throw UnboxError.fileProviderUnavailable
         }
 
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             let once = ResumeOnce(continuation)
             let finished: @convention(block) (AnyObject?, NSError?) -> Void = { _, error in
                 if let error {
-                    once.resume(throwing: DeboxError.actionFailed(error.localizedDescription))
+                    once.resume(throwing: UnboxError.actionFailed(error.localizedDescription))
                 } else {
                     once.resume()
                 }
@@ -110,7 +110,7 @@ public final class FileProviderBridge: @unchecked Sendable {
             operation.setValue(finished, forKey: "finishedBlock")
             manager.perform(scheduleSelector, with: operation)
             DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
-                once.resume(throwing: DeboxError.actionTimedOut)
+                once.resume(throwing: UnboxError.actionTimedOut)
             }
         }
     }
@@ -129,7 +129,7 @@ public final class FileProviderBridge: @unchecked Sendable {
 
         guard let identifier = value("itemIdentifier") as? String,
               let domain = value("providerDomainID") as? String else {
-            throw DeboxError.itemNotInBox(url.path)
+            throw UnboxError.itemNotInBox(url.path)
         }
         return FileProviderItemInfo(
             itemIdentifier: identifier,

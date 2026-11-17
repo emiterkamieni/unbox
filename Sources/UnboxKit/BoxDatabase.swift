@@ -26,12 +26,12 @@ public struct BoxDatabase: Sendable {
         guard sqlite3_open_v2(snapshot.path, &db, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK, let db else {
             let message = db.map { String(cString: sqlite3_errmsg($0)) } ?? "open"
             sqlite3_close(db)
-            throw DeboxError.databaseUnavailable(message)
+            throw UnboxError.databaseUnavailable(message)
         }
         defer { sqlite3_close(db) }
 
         guard try columns(of: "fsnodes", in: db).isSuperset(of: ["inodeId", "parentInodeId", "name", "isFile", "markForOffline"]) else {
-            throw DeboxError.unsupportedDatabase
+            throw UnboxError.unsupportedDatabase
         }
 
         let sql = """
@@ -48,7 +48,7 @@ public struct BoxDatabase: Sendable {
         """
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-            throw DeboxError.databaseUnavailable(String(cString: sqlite3_errmsg(db)))
+            throw UnboxError.databaseUnavailable(String(cString: sqlite3_errmsg(db)))
         }
         defer { sqlite3_finalize(statement) }
 
@@ -56,7 +56,7 @@ public struct BoxDatabase: Sendable {
         while true {
             let step = sqlite3_step(statement)
             if step == SQLITE_DONE { break }
-            guard step == SQLITE_ROW else { throw DeboxError.databaseUnavailable(String(cString: sqlite3_errmsg(db))) }
+            guard step == SQLITE_ROW else { throw UnboxError.databaseUnavailable(String(cString: sqlite3_errmsg(db))) }
             guard let text = sqlite3_column_text(statement, 0) else { continue }
             roots.append(Root(relativePath: String(cString: text), isFile: sqlite3_column_int(statement, 1) != 0))
         }
@@ -66,7 +66,7 @@ public struct BoxDatabase: Sendable {
     private func columns(of table: String, in db: OpaquePointer) throws -> Set<String> {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, "PRAGMA table_info(\(table));", -1, &statement, nil) == SQLITE_OK else {
-            throw DeboxError.databaseUnavailable(String(cString: sqlite3_errmsg(db)))
+            throw UnboxError.databaseUnavailable(String(cString: sqlite3_errmsg(db)))
         }
         defer { sqlite3_finalize(statement) }
         var names: Set<String> = []
@@ -81,9 +81,9 @@ public struct BoxDatabase: Sendable {
         let fm = FileManager.default
         let source = paths.database
         let wal = URL(fileURLWithPath: source.path + "-wal")
-        guard fm.fileExists(atPath: source.path) else { throw DeboxError.databaseUnavailable("brak pliku streemfs.db") }
+        guard fm.fileExists(atPath: source.path) else { throw UnboxError.databaseUnavailable(L10n.text("streemfs.db is missing", "brak pliku streemfs.db")) }
 
-        let folder = fm.temporaryDirectory.appendingPathComponent("debox-\(UUID().uuidString)", isDirectory: true)
+        let folder = fm.temporaryDirectory.appendingPathComponent("unbox-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(at: folder, withIntermediateDirectories: true)
         let target = folder.appendingPathComponent("streemfs.db")
         let targetWal = URL(fileURLWithPath: target.path + "-wal")
@@ -102,7 +102,7 @@ public struct BoxDatabase: Sendable {
             Thread.sleep(forTimeInterval: 0.2)
         }
         try? fm.removeItem(at: folder)
-        throw DeboxError.databaseUnavailable("baza zmieniała się podczas kopiowania")
+        throw UnboxError.databaseUnavailable(L10n.text("the database kept changing while it was copied", "baza zmieniała się podczas kopiowania"))
     }
 
     private func signature(of url: URL) -> String {

@@ -3,21 +3,41 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>pl</string>
+	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>Debox</string>
+	<string>unbox</string>
 	<key>CFBundleExecutable</key>
-	<string>Debox</string>
+	<string>unbox</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.kolegakolegi.debox</string>
+	<string>com.emiterkamieni.unbox</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>pl</string>
+		<string>de</string>
+		<string>fr</string>
+		<string>es</string>
+		<string>it</string>
+		<string>pt</string>
+		<string>nl</string>
+		<string>sv</string>
+		<string>cs</string>
+		<string>uk</string>
+		<string>ja</string>
+		<string>ko</string>
+		<string>zh-Hans</string>
+		<string>zh-Hant</string>
+	</array>
 	<key>CFBundleName</key>
-	<string>Debox</string>
+	<string>unbox</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>1.0.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
@@ -25,6 +45,18 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
-	<string>Narzędzie do zarządzania plikami offline w Box Drive.</string>
+	<string>© 2026 emiterkamieni. GPL-3.0-only.</string>
+	<key>SUAllowsAutomaticUpdates</key>
+	<false/>
+	<key>SUAutomaticallyUpdate</key>
+	<false/>
+	<key>SUEnableAutomaticChecks</key>
+	<false/>
+	<key>SUEnableSystemProfiling</key>
+	<false/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/emiterkamieni/unbox/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>Ly4RAY+TxfB35vYunIg1aM1v5udG63gmL+kiaHPZ0pM=</string>
 </dict>
 </plist>

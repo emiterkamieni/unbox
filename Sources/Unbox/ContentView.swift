@@ -1,5 +1,5 @@
 import AppKit
-import DeboxKit
+import UnboxKit
 import SwiftUI
 
 struct ContentView: View {
@@ -12,6 +12,7 @@ struct ContentView: View {
             if model.showingSettings {
                 SettingsView()
             } else {
+                UpdateNotice()
                 NoticesView()
                 ItemListView()
                 Divider()
@@ -30,18 +31,18 @@ private struct HeaderView: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: "icloud.and.arrow.down")
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(.blue)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(model.showingSettings ? "Ustawienia" : "Box offline")
-                    .font(.headline)
-                if !model.showingSettings {
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
+            VStack(alignment: .leading, spacing: 4) {
+                Image(nsImage: Brand.logo)
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(height: 15)
+                    .foregroundStyle(Brand.blue)
+                    .accessibilityLabel("unbox")
+                Text(model.showingSettings ? L10n.text("Settings", "Ustawienia") : subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
             Spacer()
             if !model.showingSettings && !model.items.isEmpty {
@@ -59,7 +60,7 @@ private struct HeaderView: View {
                 }
                 .buttonStyle(.borderless)
                 .disabled(model.isLoading || model.isApplying)
-                .help("Odśwież")
+                .help(L10n.text("Refresh", "Odśwież"))
             }
             Button {
                 model.showingSettings.toggle()
@@ -67,16 +68,20 @@ private struct HeaderView: View {
                 Image(systemName: model.showingSettings ? "xmark.circle.fill" : "gearshape")
             }
             .buttonStyle(.borderless)
-            .help(model.showingSettings ? "Zamknij ustawienia" : "Ustawienia")
+            .help(model.showingSettings ? L10n.text("Close settings", "Zamknij ustawienia") : L10n.text("Settings", "Ustawienia"))
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
     }
 
     private var subtitle: String {
-        if model.items.isEmpty { return model.isLoading ? "Sprawdzanie…" : "Nic nie jest pobrane offline" }
-        let size = model.totalSize.map { " · \(Format.bytes($0)) na dysku" } ?? ""
-        return Plural.items(model.items.count) + size
+        if model.items.isEmpty {
+            return model.isLoading ? L10n.text("Checking…", "Sprawdzanie…")
+                                   : L10n.text("Nothing is downloaded for offline use", "Nic nie jest pobrane offline")
+        }
+        let count = Plural.items(model.items.count)
+        guard let size = model.totalSize else { return L10n.format("%@ offline", "%@ offline", count) }
+        return L10n.format("%@ offline · %@ on disk", "%@ offline · %@ na dysku", count, Format.bytes(size))
     }
 }
 
@@ -89,12 +94,12 @@ private struct SortMenu: View {
             Image(systemName: "arrow.up.arrow.down")
         }
         .buttonStyle(.borderless)
-        .help("Sortuj według: \(model.sortOrder.title.lowercased())")
+        .help(L10n.format("Sort by: %@", "Sortuj według: %@", model.sortOrder.title))
     }
 
     private func showMenu() {
         let menu = NSMenu()
-        let header = NSMenuItem(title: "Sortuj według", action: nil, keyEquivalent: "")
+        let header = NSMenuItem(title: L10n.text("Sort by", "Sortuj według"), action: nil, keyEquivalent: "")
         header.isEnabled = false
         menu.addItem(header)
         for order in SortOrder.allCases {
@@ -121,6 +126,18 @@ private final class MenuAction: NSObject {
     }
 }
 
+private struct UpdateNotice: View {
+    @EnvironmentObject private var updates: UpdateController
+
+    var body: some View {
+        if let version = updates.availableVersion {
+            NoticeRow(symbol: "arrow.down.circle.fill", tint: Brand.blue,
+                      text: L10n.format("unbox %@ is available.", "Dostępna jest wersja unbox %@.", version),
+                      actionTitle: L10n.text("Update…", "Aktualizuj…"), action: { updates.checkForUpdates() })
+        }
+    }
+}
+
 private struct NoticesView: View {
     @EnvironmentObject private var model: AppModel
 
@@ -131,12 +148,14 @@ private struct NoticesView: View {
             }
             if !model.isBoxRunning {
                 NoticeRow(symbol: "pause.circle.fill", tint: .orange,
-                          text: "Box Drive nie działa. Uruchom go, aby zmieniać ustawienia offline.",
-                          actionTitle: "Uruchom Box", action: { model.launchBox() })
+                          text: L10n.text("Box Drive is not running. Open it to change offline settings.",
+                                          "Box Drive nie działa. Uruchom go, aby zmieniać ustawienia offline."),
+                          actionTitle: L10n.text("Open Box", "Uruchom Box"), action: { model.launchBox() })
             }
             if model.loadError == nil && !model.canChangeOfflineState {
                 NoticeRow(symbol: "info.circle.fill", tint: .orange,
-                          text: "macOS nie pozwala tu na automatyczne odznaczanie. Użyj „Pokaż w Finderze” → prawy przycisk → Make Available Online Only.")
+                          text: L10n.text("macOS does not allow automatic changes here. Use “Show in Finder”, right-click the item and choose Make Available Online Only.",
+                                          "macOS nie pozwala tu na automatyczne odznaczanie. Użyj „Pokaż w Finderze”, kliknij element prawym przyciskiem i wybierz Make Available Online Only."))
             }
         }
     }
@@ -173,7 +192,8 @@ private struct ItemListView: View {
                 Image(systemName: model.isLoading ? "hourglass" : "checkmark.icloud")
                     .font(.system(size: 30))
                     .foregroundStyle(.secondary)
-                Text(model.isLoading ? "Sprawdzanie plików offline…" : "Żaden folder ani plik nie jest oznaczony offline.")
+                Text(model.isLoading ? L10n.text("Checking offline files…", "Sprawdzanie plików offline…")
+                                     : L10n.text("No folders or files are available offline.", "Żaden folder ani plik nie jest oznaczony offline."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -268,7 +288,8 @@ private struct ItemRow: View {
                 .toggleStyle(.checkbox)
                 .labelsHidden()
                 .disabled(model.isApplying || !model.canChangeOfflineState)
-                .help(isKept ? "Odznacz, aby ustawić jako tylko online" : "Pozostaw offline")
+                .help(isKept ? L10n.text("Uncheck to make it online-only", "Odznacz, aby ustawić jako tylko online")
+                             : L10n.text("Keep offline", "Pozostaw offline"))
 
             HStack(spacing: 8) {
                 Image(systemName: item.isFolder ? "folder.fill" : "doc.fill")
@@ -325,7 +346,8 @@ private struct ItemRow: View {
                 .font(.callout)
                 .foregroundStyle(isKept ? Color.secondary : Color.orange)
                 .monospacedDigit()
-                .help(isKept ? "Miejsce zajmowane na dysku" : "Tyle miejsca się zwolni")
+                .help(isKept ? L10n.text("Space used on disk", "Miejsce zajmowane na dysku")
+                             : L10n.text("Space that will be freed", "Tyle miejsca się zwolni"))
             // Shown only on hover so it takes no space otherwise; the size slides left to make room.
             if isHovered {
                 Button {
@@ -338,7 +360,7 @@ private struct ItemRow: View {
                 }
                 .buttonStyle(.borderless)
                 .foregroundStyle(.secondary)
-                .help("Pokaż w Finderze")
+                .help(L10n.text("Show in Finder", "Pokaż w Finderze"))
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
@@ -356,18 +378,20 @@ private struct FooterView: View {
             if model.isApplying {
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
-                    Text(model.freeSpace ? "Ustawianie jako tylko online i zwalnianie miejsca…" : "Ustawianie jako tylko online…")
+                    Text(model.freeSpace
+                         ? L10n.text("Making online-only and freeing space…", "Ustawianie jako tylko online i zwalnianie miejsca…")
+                         : L10n.text("Making online-only…", "Ustawianie jako tylko online…"))
                         .font(.callout)
                 }
             } else if !model.markedOnlineOnly.isEmpty {
                 selectionBar
             } else {
                 HStack {
-                    Text("Odznacz element, aby przestał być dostępny offline.")
+                    Text(L10n.text("Uncheck an item to stop keeping it offline.", "Odznacz element, aby przestał być dostępny offline."))
                         .foregroundStyle(.secondary)
                     Spacer(minLength: 8)
                     if let date = model.lastRefresh {
-                        Text("Sprawdzono \(date.formatted(date: .omitted, time: .shortened))")
+                        Text(L10n.format("Checked %@", "Sprawdzono %@", Format.time(date)))
                             .foregroundStyle(.tertiary)
                             .monospacedDigit()
                     }
@@ -383,24 +407,26 @@ private struct FooterView: View {
     private var selectionBar: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !model.isOnline {
-                Label("Brak internetu – po zmianie tych plików nie otworzysz do czasu połączenia.", systemImage: "wifi.slash")
+                Label(L10n.text("No internet connection – you won’t be able to open these files until you’re back online.",
+                                "Brak internetu – po zmianie tych plików nie otworzysz do czasu połączenia."),
+                      systemImage: "wifi.slash")
                     .font(.caption)
                     .foregroundStyle(.orange)
             }
             HStack {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Tylko online: \(Plural.items(model.markedOnlineOnly.count))")
+                    Text(L10n.format("Online-only: %@", "Tylko online: %@", Plural.items(model.markedOnlineOnly.count)))
                         .font(.callout.weight(.medium))
                     if model.freeSpace, let size = model.selectedSize {
-                        Text("Zwolni ok. \(Format.bytes(size))")
+                        Text(L10n.format("Frees about %@", "Zwolni ok. %@", Format.bytes(size)))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
                 Spacer()
-                Button("Anuluj") { model.cancelSelection() }
+                Button(L10n.text("Cancel", "Anuluj")) { model.cancelSelection() }
                     .keyboardShortcut(.cancelAction)
-                Button("Zastosuj") { model.apply() }
+                Button(L10n.text("Apply", "Zastosuj")) { model.apply() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(!model.isBoxRunning || !model.canChangeOfflineState)
             }
@@ -431,7 +457,7 @@ private struct BannerView: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.borderless)
-            .help("Zamknij")
+            .help(L10n.text("Close", "Zamknij"))
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)

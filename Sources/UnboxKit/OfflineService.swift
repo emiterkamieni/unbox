@@ -114,7 +114,7 @@ public final class OfflineService: @unchecked Sendable {
             if let info = try? await bridge.item(at: item.url), info.isMarkedOffline == expected { return }
             try await Task.sleep(nanoseconds: 500_000_000)
         }
-        throw DeboxError.boxDidNotApply(item.name)
+        throw UnboxError.boxDidNotApply(item.name)
     }
 
     private func removeLocalCopies(of url: URL) async throws {

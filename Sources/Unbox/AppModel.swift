@@ -1,5 +1,5 @@
 import AppKit
-import DeboxKit
+import UnboxKit
 import Network
 import SwiftUI
 
@@ -16,8 +16,8 @@ enum SortOrder: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .name: return "Nazwa (A–Z)"
-        case .size: return "Rozmiar (największe)"
+        case .name: return L10n.text("Name (A–Z)", "Nazwa (A–Z)")
+        case .size: return L10n.text("Size (largest first)", "Rozmiar (największe)")
         }
     }
 }
@@ -56,6 +56,13 @@ final class AppModel: ObservableObject {
     @Published var sortOrder: SortOrder {
         didSet { UserDefaults.standard.set(sortOrder.rawValue, forKey: Keys.sortOrder) }
     }
+    @Published var language: AppLanguage {
+        didSet {
+            UserDefaults.standard.set(language.rawValue, forKey: Keys.language)
+            Self.apply(language)
+            refresh(force: true)
+        }
+    }
     @Published private(set) var launchAtLogin = LoginItem.isEnabled
     @Published private(set) var launchAtLoginNeedsApproval = LoginItem.needsApproval
     @Published private(set) var launchAtLoginError: String?
@@ -67,6 +74,7 @@ final class AppModel: ObservableObject {
         static let freeSpace = "freeSpaceAfterUnmark"
         static let refreshMinutes = "refreshMinutes"
         static let sortOrder = "sortOrder"
+        static let language = "language"
     }
 
     init() {
@@ -74,6 +82,9 @@ final class AppModel: ObservableObject {
         freeSpace = UserDefaults.standard.bool(forKey: Keys.freeSpace)
         refreshMinutes = UserDefaults.standard.integer(forKey: Keys.refreshMinutes)
         sortOrder = UserDefaults.standard.string(forKey: Keys.sortOrder).flatMap(SortOrder.init(rawValue:)) ?? .name
+        let savedLanguage = UserDefaults.standard.string(forKey: Keys.language).flatMap(AppLanguage.init(rawValue:)) ?? .system
+        language = savedLanguage
+        Self.apply(savedLanguage)
 
         do {
             service = try OfflineService()
@@ -87,7 +98,7 @@ final class AppModel: ObservableObject {
             let online = path.status == .satisfied
             Task { @MainActor in model.isOnline = online }
         }
-        pathMonitor.start(queue: DispatchQueue(label: "debox.network"))
+        pathMonitor.start(queue: DispatchQueue(label: "unbox.network"))
     }
 
     // MARK: - Derived state
@@ -240,6 +251,17 @@ final class AppModel: ObservableObject {
 
     // MARK: - Helpers
 
+    /// The interface switches immediately. `AppleLanguages` makes system-provided windows
+    /// (e.g. the update dialogs) follow the same choice from the next launch.
+    private static func apply(_ language: AppLanguage) {
+        L10n.configure(language)
+        if language == .system {
+            UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+        } else {
+            UserDefaults.standard.set([language.rawValue], forKey: "AppleLanguages")
+        }
+    }
+
     private static func measure(_ items: [OfflineItem]) async -> [String: Int64] {
         await Task.detached(priority: .utility) {
             Dictionary(uniqueKeysWithValues: items.map { ($0.id, DiskUsage.allocatedSize(of: $0.url)) })
@@ -249,12 +271,11 @@ final class AppModel: ObservableObject {
     private static func summary(done: Int, freed: Int64, freeSpace: Bool, keptLocally: Int, failures: [String]) -> Banner {
         var parts: [String] = []
         if done > 0 {
-            parts.append("Tylko online: \(Plural.items(done)).")
-            if freeSpace { parts.append("Zwolniono \(Format.bytes(freed)).") }
+            parts.append(L10n.format("Online-only: %@.", "Tylko online: %@.", Plural.items(done)))
+            if freeSpace { parts.append(L10n.format("Freed %@.", "Zwolniono %@.", Format.bytes(freed))) }
         }
         if freeSpace && keptLocally > 0 {
-            let verb = Plural.form(keptLocally, "został", "zostały", "zostało")
-            parts.append("\(Plural.files(keptLocally)) \(verb) na dysku (niewysłane zmiany lub otwarte pliki).")
+            parts.append(Plural.filesKept(keptLocally))
         }
         if !failures.isEmpty {
             parts.append(failures.joined(separator: "\n"))
@@ -264,19 +285,30 @@ final class AppModel: ObservableObject {
     }
 }
 
+/// Numbers and units follow the language chosen in unbox, not only the system locale.
 enum Format {
     static func bytes(_ value: Int64) -> String {
-        ByteCountFormatter.string(fromByteCount: value, countStyle: .file)
+        value.formatted(.byteCount(style: .file).locale(L10n.locale))
+    }
+
+    static func time(_ date: Date) -> String {
+        date.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(L10n.locale))
     }
 }
 
 enum Plural {
-    static func items(_ n: Int) -> String { "\(n) " + form(n, "element", "elementy", "elementów") }
-    static func files(_ n: Int) -> String { "\(n) " + form(n, "plik", "pliki", "plików") }
+    static func items(_ n: Int) -> String {
+        L10n.plural("items", count: n,
+                    english: ("%ld item", "%ld items"),
+                    polish: ("%ld element", "%ld elementy", "%ld elementów"))
+    }
 
-    static func form(_ n: Int, _ one: String, _ few: String, _ many: String) -> String {
-        if n == 1 { return one }
-        let lastDigit = n % 10, lastTwo = n % 100
-        return (2...4).contains(lastDigit) && !(12...14).contains(lastTwo) ? few : many
+    static func filesKept(_ n: Int) -> String {
+        L10n.plural("filesKept", count: n,
+                    english: ("%ld file stayed on disk (unsent changes or open files).",
+                              "%ld files stayed on disk (unsent changes or open files)."),
+                    polish: ("%ld plik został na dysku (niewysłane zmiany lub otwarte pliki).",
+                             "%ld pliki zostały na dysku (niewysłane zmiany lub otwarte pliki).",
+                             "%ld plików zostało na dysku (niewysłane zmiany lub otwarte pliki)."))
     }
 }
