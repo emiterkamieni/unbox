@@ -66,10 +66,12 @@ let key = try! Curve25519.Signing.PublicKey(rawRepresentation: Data(base64Encode
 let data = try! Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1]))
 exit(key.isValidSignature(Data(base64Encoded: "{signature}")!, for: data) ? 0 : 1)
 """
-    checker = ROOT / ".build" / "verify-signature.swift"
-    checker.parent.mkdir(exist_ok=True)
-    checker.write_text(script)
-    if subprocess.run(["swift", str(checker), str(archive)], cwd=ROOT).returncode != 0:
+    source = ROOT / ".build" / "verify-signature.swift"
+    binary = source.with_suffix("")
+    source.parent.mkdir(exist_ok=True)
+    source.write_text(script)
+    run("swiftc", "-O", "-o", binary, source)
+    if subprocess.run([str(binary), str(archive)], cwd=ROOT).returncode != 0:
         sys.exit("The EdDSA signature does not match SUPublicEDKey – release aborted.")
 
 
