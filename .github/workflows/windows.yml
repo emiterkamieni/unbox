@@ -21,7 +21,6 @@ on:
 
 permissions:
   contents: write
-  actions: read
 
 jobs:
   build:
@@ -29,9 +28,6 @@ jobs:
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
       DOTNET_NOLOGO: '1'
-      # Code signing through SignPath Foundation starts once the repository variable
-      # SIGNPATH_ORGANIZATION_ID and the secret SIGNPATH_API_TOKEN are set (see README → Code signing policy).
-      SIGNING: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -67,48 +63,6 @@ jobs:
           foreach ($rid in 'win-x64', 'win-arm64') {
             dotnet publish windows/src/Unbox/Unbox.csproj -c Release -r $rid --self-contained -p:Version=$env:VERSION -o "publish/$rid"
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
-            # Only unbox's own files are signed; .NET's files are already signed by Microsoft.
-            New-Item -ItemType Directory -Force "unsigned/binaries/$rid" | Out-Null
-            Copy-Item "publish/$rid/unbox.exe", "publish/$rid/unbox.dll", "publish/$rid/UnboxKit.dll" "unsigned/binaries/$rid/"
-          }
-
-      # 1. unbox.exe, unbox.dll and UnboxKit.dll, before they go into the Velopack packages.
-      - name: Upload binaries for signing
-        id: unsigned-binaries
-        if: steps.version.outputs.tag != '' && env.SIGNING == 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: unsigned-binaries
-          path: unsigned/binaries/
-          retention-days: 1
-
-      - name: Sign binaries
-        if: steps.version.outputs.tag != '' && env.SIGNING == 'true'
-        uses: signpath/github-action-submit-signing-request@v3
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'unbox' }}
-          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG || 'release-signing' }}
-          artifact-configuration-slug: binaries
-          github-artifact-id: ${{ steps.unsigned-binaries.outputs.artifact-id }}
-          parameters: |
-            version: "${{ steps.version.outputs.version }}"
-          wait-for-completion: true
-          # Every release is approved by hand in SignPath.
-          wait-for-completion-timeout-in-seconds: 3600
-          output-artifact-directory: signed/binaries
-
-      - name: Use the signed binaries
-        if: steps.version.outputs.tag != '' && env.SIGNING == 'true'
-        shell: pwsh
-        run: |
-          foreach ($rid in 'win-x64', 'win-arm64') {
-            foreach ($file in Get-ChildItem "signed/binaries/$rid") {
-              $status = (Get-AuthenticodeSignature $file.FullName).Status
-              if ($status -ne 'Valid') { throw "$rid/$($file.Name): signature $status" }
-              Copy-Item $file.FullName "publish/$rid/" -Force
-            }
           }
 
       - name: Package with Velopack
@@ -129,46 +83,8 @@ jobs:
             if (Test-Path $notes) { $arguments += @('--releaseNotes', $notes) }
             vpk @arguments
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
-            New-Item -ItemType Directory -Force unsigned/installers | Out-Null
-            Copy-Item "releases/unbox-$rid-Setup.exe" unsigned/installers/
           }
           Get-ChildItem releases | Format-Table Name, Length
-
-      # 2. The installers, which contain the packages with the signed binaries.
-      - name: Upload installers for signing
-        id: unsigned-installers
-        if: steps.version.outputs.tag != '' && env.SIGNING == 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: unsigned-installers
-          path: unsigned/installers/
-          retention-days: 1
-
-      - name: Sign installers
-        if: steps.version.outputs.tag != '' && env.SIGNING == 'true'
-        uses: signpath/github-action-submit-signing-request@v3
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'unbox' }}
-          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG || 'release-signing' }}
-          artifact-configuration-slug: installers
-          github-artifact-id: ${{ steps.unsigned-installers.outputs.artifact-id }}
-          parameters: |
-            version: "${{ steps.version.outputs.version }}"
-          wait-for-completion: true
-          wait-for-completion-timeout-in-seconds: 3600
-          output-artifact-directory: signed/installers
-
-      - name: Use the signed installers
-        if: steps.version.outputs.tag != '' && env.SIGNING == 'true'
-        shell: pwsh
-        run: |
-          foreach ($file in Get-ChildItem signed/installers) {
-            $status = (Get-AuthenticodeSignature $file.FullName).Status
-            if ($status -ne 'Valid') { throw "$($file.Name): signature $status" }
-            Copy-Item $file.FullName releases/ -Force
-          }
 
       - name: Upload to the GitHub release
         if: steps.version.outputs.tag != ''

@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Regenerates the README screenshots from the demo data (English, light and dark mode) into
-# .github/screenshots/. Requires ImageMagick (`brew install imagemagick`).
+# .github/screenshots/. The Windows frame needs ImageMagick (`brew install imagemagick`).
 #
 #   scripts/screenshots.sh mac               builds unbox and captures the macOS popover
 #   scripts/screenshots.sh windows <folder>  frames the PNGs saved on Windows by
@@ -11,17 +11,14 @@ ROOT="${0:A:h:h}"
 OUT="$ROOT/.github/screenshots"
 mkdir -p "$OUT"
 
-# The same shadow and 40 pt margin for both systems, so the screenshots match side by side.
+# The same soft shadow and 40 pt margin for both systems (scripts/screenshot-shadow.swift).
 shadow() {
-  local file=$1 opacity=0.2
-  [[ "$file" == *-dark.png ]] && opacity=0.5
-  local width height
-  read -r width height <<< "$(magick identify -format '%w %h' "$file")"
-  magick -size "$((width + 160))x$((height + 160))" xc:none \
-    \( "$file" -repage +80+80 \) \
-    \( +clone -background "rgba(0,0,0,$opacity)" -shadow 100x24+0+12 \) -swap 1,2 \
-    -background none -layers flatten -depth 8 -strip "$file"
-  echo "$file"
+  local tool="$ROOT/.build/screenshot-shadow"
+  if [[ ! -x "$tool" || "$ROOT/scripts/screenshot-shadow.swift" -nt "$tool" ]]; then
+    mkdir -p "$ROOT/.build"
+    swiftc -O -o "$tool" "$ROOT/scripts/screenshot-shadow.swift"
+  fi
+  "$tool" "$@"
 }
 
 case "${1:-}" in
@@ -38,7 +35,7 @@ case "${1:-}" in
     for appearance in light dark; do
       "$DEMO/Contents/MacOS/unbox" --demo --appearance "$appearance" --snapshot "$OUT" -language en >/dev/null
     done
-    for file in "$OUT"/macos-*.png; do shadow "$file"; done
+    shadow "$OUT"/macos-*.png
     defaults delete "$DOMAIN" >/dev/null 2>&1 || true
     rm -rf "$DEMO"
     ;;

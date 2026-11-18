@@ -61,9 +61,9 @@ Wymagania: Windows 10 22H2 lub Windows 11 (x64 albo Arm), nowy Box Drive dla Win
 
 1. Pobierz `unbox-win-x64-Setup.exe` (większość komputerów) albo `unbox-win-arm64-Setup.exe` (komputery z
    procesorem Arm) z [najnowszego wydania](https://github.com/emiterkamieni/unbox/releases/latest).
-2. Uruchom instalator. unbox instaluje się tylko dla Ciebie, bez uprawnień administratora. Dopóki nie ruszy
-   podpisywanie kodu (zob. [Code signing policy](README.md#code-signing-policy)), SmartScreen może pokazać
-   *System Windows ochronił ten komputer* – kliknij **Więcej informacji → Uruchom mimo to**.
+2. Uruchom instalator. unbox instaluje się tylko dla Ciebie, bez uprawnień administratora. Instalator nie jest
+   podpisany, więc SmartScreen może pokazać *System Windows ochronił ten komputer* – kliknij
+   **Więcej informacji → Uruchom mimo to**.
 3. Windows chowa nowe ikony w zasobniku pod strzałką **^** obok zegara. Przeciągnij ikonę unbox na pasek
    zadań albo włącz ją w **Ustawienia → Personalizacja → Pasek zadań → Inne ikony zasobnika systemowego**.
 

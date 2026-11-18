@@ -79,8 +79,8 @@ Windows (x64 and Arm)
    To verify the download, compare the output of `Get-FileHash .\unbox-win-x64-Setup.exe` in PowerShell
    with its line in `SHA256SUMS`.
 2. Run it. unbox installs for your user only, without administrator rights, and starts right away.
-   Until code signing is in place (see the [code signing policy](#code-signing-policy)), Microsoft Defender
-   SmartScreen may show *Windows protected your PC* – click **More info → Run anyway**.
+   The installer is **not code-signed**, so Microsoft Defender SmartScreen may show *Windows protected your
+   PC* – click **More info → Run anyway**.
 3. Windows hides new notification area icons in the overflow menu (the **^** next to the clock). Drag the
    unbox icon onto the taskbar, or turn it on in **Settings → Personalization → Taskbar → Other system tray
    icons**. Starting unbox again from the Start menu also opens its panel.
@@ -176,31 +176,6 @@ No analytics, no accounts.
 
 unbox is an independent project and is not affiliated with or endorsed by Box, Inc.
 Box and Box Drive are trademarks of Box, Inc.
-
-## Code signing policy
-
-Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by
-[SignPath Foundation](https://signpath.org).
-
-> [!NOTE]
-> Signing through the SignPath Foundation program is being set up. Until unbox is approved, the Windows
-> downloads are not signed.
-
-- **Windows:** unbox's own program files (`unbox.exe`, `unbox.dll`, `UnboxKit.dll`) and the installers
-  (`unbox-win-*-Setup.exe`) are signed. They are built from this repository by
-  [GitHub Actions](.github/workflows/windows.yml), and each release is approved by hand before it is signed
-  ([signing configuration](.signpath/)). Components from other projects are included as published by their
-  authors: the .NET runtime (signed by Microsoft) and Velopack's `Update.exe`.
-- **macOS:** the app is ad-hoc signed and not notarized. Updates are accepted only with a valid EdDSA signature
-  from this project's key (Sparkle).
-
-Team roles:
-
-- Committers and reviewers: [emiterkamieni](https://github.com/emiterkamieni)
-- Approvers: [emiterkamieni](https://github.com/emiterkamieni)
-
-Privacy policy: unbox does not collect or transfer any personal data; see [Privacy](#privacy) for the update
-checks, the only network requests it makes.
 
 ## Building from source
 
