@@ -3,6 +3,7 @@
 //   Support/MenuBarIcon.pdf  – template symbol for the menu bar
 //   Support/Logo.pdf         – template wordmark for the popover header
 //   Support/AppIcon.icns     – white symbol on a blue rounded square
+//   windows/src/Unbox/Assets – AppIcon.ico, tray icons for light/dark taskbars, Brand.xaml geometries
 // Usage: swift scripts/make-icons.swift
 
 import AppKit
@@ -177,6 +178,124 @@ func writePNG(_ image: CGImage, to url: URL) {
     CGImageDestinationFinalize(destination)
 }
 
+func pngData(_ image: CGImage) -> Data {
+    let data = NSMutableData()
+    let destination = CGImageDestinationCreateWithData(data as CFMutableData, UTType.png.identifier as CFString, 1, nil)!
+    CGImageDestinationAddImage(destination, image, nil)
+    CGImageDestinationFinalize(destination)
+    return data as Data
+}
+
+// MARK: - Windows
+
+func bitmapContext(_ pixels: Int) -> CGContext {
+    CGContext(data: nil, width: pixels, height: pixels, bitsPerComponent: 8, bytesPerRow: pixels * 4,
+              space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+}
+
+/// Windows style: the tile fills the canvas (no macOS shadow margin), so small sizes stay legible.
+func renderWindowsAppIcon(_ symbol: SVGShape, pixels: Int) -> CGImage {
+    let context = bitmapContext(pixels)
+    let size = CGFloat(pixels)
+    let inset = pixels <= 24 ? 0 : size * 0.04
+    let tile = CGRect(x: inset, y: inset, width: size - inset * 2, height: size - inset * 2)
+    let shape = CGPath(roundedRect: tile, cornerWidth: tile.width * 0.22, cornerHeight: tile.width * 0.22, transform: nil)
+    context.addPath(shape)
+    context.clip()
+    let gradient = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB)!,
+                              colors: [color(0x2E94FF), color(0x0179FD), color(0x0062D6)] as CFArray, locations: [0, 0.45, 1])!
+    context.drawLinearGradient(gradient, start: CGPoint(x: 0, y: tile.maxY), end: CGPoint(x: 0, y: tile.minY), options: [])
+    let height = tile.height * 0.6
+    let width = height * symbol.viewBox.width / symbol.viewBox.height
+    draw(symbol, in: CGRect(x: tile.midX - width / 2, y: tile.midY - height / 2, width: width, height: height),
+         color: CGColor(gray: 1, alpha: 1), context: context)
+    return context.makeImage()!
+}
+
+/// Notification area icon: the symbol alone, black for light taskbars or white for dark ones.
+func renderTrayIcon(_ symbol: SVGShape, pixels: Int, white: Bool) -> CGImage {
+    let context = bitmapContext(pixels)
+    let size = CGFloat(pixels)
+    let height = size * 0.875
+    let width = height * symbol.viewBox.width / symbol.viewBox.height
+    draw(symbol, in: CGRect(x: (size - width) / 2, y: (size - height) / 2, width: width, height: height),
+         color: white ? CGColor(gray: 1, alpha: 1) : CGColor(gray: 0, alpha: 1), context: context)
+    return context.makeImage()!
+}
+
+/// ICO with 32-bit DIB entries up to 64 px and PNG entries above, which every Windows API can load.
+func writeICO(_ images: [CGImage], to url: URL) {
+    func le16(_ value: Int) -> [UInt8] { [UInt8(value & 0xFF), UInt8((value >> 8) & 0xFF)] }
+    func le32(_ value: Int) -> [UInt8] { le16(value & 0xFFFF) + le16((value >> 16) & 0xFFFF) }
+
+    let payloads: [Data] = images.map { image in
+        let size = image.width
+        guard size <= 64 else { return pngData(image) }
+        let context = bitmapContext(size)
+        context.draw(image, in: CGRect(x: 0, y: 0, width: size, height: size))
+        let pixels = context.data!.assumingMemoryBound(to: UInt8.self)
+        var bytes = Data(le32(40) + le32(size) + le32(size * 2) + le16(1) + le16(32) + le32(0) + le32(0) + le32(0) + le32(0) + le32(0) + le32(0))
+        for row in (0..<size).reversed() { // bottom-up, BGRA, straight alpha
+            for column in 0..<size {
+                let offset = (row * size + column) * 4
+                let alpha = pixels[offset + 3]
+                func straight(_ value: UInt8) -> UInt8 { alpha == 0 ? 0 : UInt8(min(255, Int(value) * 255 / Int(alpha))) }
+                bytes.append(contentsOf: [straight(pixels[offset + 2]), straight(pixels[offset + 1]), straight(pixels[offset]), alpha])
+            }
+        }
+        let maskRow = ((size + 31) / 32) * 4
+        bytes.append(Data(count: maskRow * size)) // AND mask unused with alpha
+        return bytes
+    }
+
+    var file = Data(le16(0) + le16(1) + le16(images.count))
+    var offset = 6 + 16 * images.count
+    for (image, payload) in zip(images, payloads) {
+        let size = image.width >= 256 ? 0 : image.width
+        file.append(contentsOf: [UInt8(size), UInt8(size), 0, 0] + le16(1) + le16(32) + le32(payload.count) + le32(offset))
+        offset += payload.count
+    }
+    payloads.forEach { file.append($0) }
+    try! file.write(to: url)
+}
+
+/// WPF path markup with absolute commands (SVG coordinates are y-down like WPF's).
+func geometryMarkup(_ shape: SVGShape) -> String {
+    func number(_ value: CGFloat) -> String { String(format: "%.2f", value).replacingOccurrences(of: ".00", with: "") }
+    var parts = ["F1"]
+    for path in shape.paths {
+        path.applyWithBlock { pointer in
+            let element = pointer.pointee
+            let points = element.points
+            switch element.type {
+            case .moveToPoint: parts.append("M\(number(points[0].x)),\(number(points[0].y))")
+            case .addLineToPoint: parts.append("L\(number(points[0].x)),\(number(points[0].y))")
+            case .addQuadCurveToPoint:
+                parts.append("Q\(number(points[0].x)),\(number(points[0].y)) \(number(points[1].x)),\(number(points[1].y))")
+            case .addCurveToPoint:
+                parts.append("C\(number(points[0].x)),\(number(points[0].y)) \(number(points[1].x)),\(number(points[1].y)) \(number(points[2].x)),\(number(points[2].y))")
+            case .closeSubpath: parts.append("Z")
+            @unknown default: break
+            }
+        }
+    }
+    return parts.joined(separator: " ")
+}
+
+func writeBrandXAML(logo: SVGShape, symbol: SVGShape, to url: URL) {
+    let xaml = """
+    <!-- Generated by scripts/make-icons.swift from docs/*.svg – do not edit. -->
+    <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        <SolidColorBrush x:Key="BrandBlue" Color="#0179FD" />
+        <Geometry x:Key="LogoGeometry">\(geometryMarkup(logo))</Geometry>
+        <Geometry x:Key="SymbolGeometry">\(geometryMarkup(symbol))</Geometry>
+    </ResourceDictionary>
+
+    """
+    try! xaml.write(to: url, atomically: true, encoding: .utf8)
+}
+
 let symbol = try loadSVG(docs.appendingPathComponent("unbox_symbol.svg"))
 let logo = try loadSVG(docs.appendingPathComponent("unbox_logo.svg"))
 
@@ -196,4 +315,15 @@ iconutil.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
 iconutil.arguments = ["-c", "icns", iconset.path, "-o", support.appendingPathComponent("AppIcon.icns").path]
 try iconutil.run()
 iconutil.waitUntilExit()
-print("Gotowe: Support/MenuBarIcon.pdf, Support/Logo.pdf, Support/AppIcon.iconset, Support/AppIcon.icns")
+
+let windowsAssets = root.appendingPathComponent("windows/src/Unbox/Assets")
+try FileManager.default.createDirectory(at: windowsAssets, withIntermediateDirectories: true)
+writeICO([16, 20, 24, 32, 40, 48, 64, 96, 128, 256].map { renderWindowsAppIcon(symbol, pixels: $0) },
+         to: windowsAssets.appendingPathComponent("AppIcon.ico"))
+for (name, white) in [("TrayLight.ico", false), ("TrayDark.ico", true)] {
+    writeICO([16, 20, 24, 32, 40, 48, 64].map { renderTrayIcon(symbol, pixels: $0, white: white) },
+             to: windowsAssets.appendingPathComponent(name))
+}
+writeBrandXAML(logo: logo, symbol: symbol, to: windowsAssets.appendingPathComponent("Brand.xaml"))
+writePNG(renderWindowsAppIcon(symbol, pixels: 256), to: FileManager.default.temporaryDirectory.appendingPathComponent("unbox-win-icon.png"))
+print("Gotowe: Support/ (macOS) i windows/src/Unbox/Assets/ (Windows)")

@@ -1,0 +1,100 @@
+name: Windows
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths:
+      - 'windows/**'
+      - 'Resources/Localizations/**'
+      - 'release-notes/**'
+      - '.github/workflows/windows.yml'
+  pull_request:
+    paths:
+      - 'windows/**'
+      - 'Resources/Localizations/**'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build the Windows packages for (e.g. v1.1.0)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Version
+        id: version
+        shell: pwsh
+        run: |
+          $tag = '${{ inputs.tag }}'
+          if (-not $tag -and '${{ github.ref_type }}' -eq 'tag') { $tag = '${{ github.ref_name }}' }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "version=$($tag.TrimStart('v'))" >> $env:GITHUB_OUTPUT
+
+      - name: Check translations
+        run: python scripts/check-localization.py
+
+      - name: Build
+        run: |
+          dotnet build windows/src/Unbox/Unbox.csproj -c Release
+          dotnet build windows/src/unbox-cli/unbox-cli.csproj -c Release
+
+      - name: Package with Velopack
+        if: steps.version.outputs.tag != ''
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          dotnet tool install -g vpk --version 1.2.161
+          $notes = "release-notes/$env:VERSION.md"
+          foreach ($rid in 'win-x64', 'win-arm64') {
+            dotnet publish windows/src/Unbox/Unbox.csproj -c Release -r $rid --self-contained -p:Version=$env:VERSION -o "publish/$rid"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            # The previous release lets vpk build a small delta update.
+            vpk download github --repoUrl "https://github.com/${{ github.repository }}" --channel $rid --token $env:GH_TOKEN -o releases
+            $arguments = @('pack', '--packId', 'unbox', '--packVersion', $env:VERSION, '--packDir', "publish/$rid",
+                           '--mainExe', 'unbox.exe', '--packTitle', 'unbox', '--packAuthors', 'emiterkamieni',
+                           '--icon', 'windows/src/Unbox/Assets/AppIcon.ico', '--channel', $rid, '--runtime', $rid, '-o', 'releases')
+            if (Test-Path $notes) { $arguments += @('--releaseNotes', $notes) }
+            vpk @arguments
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+          Get-ChildItem releases | Format-Table Name, Length
+
+      - name: Upload to the GitHub release
+        if: steps.version.outputs.tag != ''
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # The macOS release script creates the release right after pushing the tag.
+          for ($i = 0; $i -lt 60; $i++) {
+            gh release view $env:TAG --repo ${{ github.repository }} *> $null
+            if ($LASTEXITCODE -eq 0) { break }
+            Start-Sleep -Seconds 15
+          }
+          $files = foreach ($rid in 'win-x64', 'win-arm64') {
+            "releases/unbox-$rid-Setup.exe", "releases/unbox-$rid-Portable.zip",
+            "releases/releases.$rid.json", "releases/assets.$rid.json", "releases/RELEASES-$rid",
+            "releases/unbox-$env:VERSION-$rid-full.nupkg", "releases/unbox-$env:VERSION-$rid-delta.nupkg"
+          }
+          $files = $files | Where-Object { Test-Path $_ }
+          gh release upload $env:TAG @files --repo ${{ github.repository }} --clobber

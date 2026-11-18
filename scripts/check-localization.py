@@ -18,14 +18,23 @@ LANGUAGES = ["de", "fr", "es", "it", "pt", "nl", "sv", "cs", "uk", "ja", "ko", "
 PLURAL_FORMS = ["one", "few", "many", "other"]
 
 STRING = r'"((?:[^"\\]|\\.)*)"'
-TEXT_CALL = re.compile(r"L10n\.(?:text|format)\(\s*" + STRING)
-PLURAL_CALL = re.compile(r'L10n\.plural\(\s*"(\w+)"')
+# Swift (L10n.text) and C# (L10n.Text) call sites.
+TEXT_CALL = re.compile(r"L10n\.(?:[tT]ext|[fF]ormat)\(\s*" + STRING)
+PLURAL_CALL = re.compile(r'L10n\.[pP]lural\(\s*"(\w+)"')
 PLACEHOLDER = re.compile(r"%(?:@|ld|d)")
+SOURCES = [("Sources", "*.swift"), ("windows/src", "*.cs")]
+
+
+def source_files():
+    for folder, pattern in SOURCES:
+        yield from sorted((ROOT / folder).rglob(pattern))
 
 
 def source_keys():
     keys, plurals = set(), set()
-    for path in sorted((ROOT / "Sources").rglob("*.swift")):
+    for path in source_files():
+        if "/obj/" in str(path) or "/bin/" in str(path):
+            continue
         text = path.read_text(encoding="utf-8")
         keys.update(match.group(1).encode().decode("unicode_escape").encode("latin-1").decode("utf-8")
                     for match in TEXT_CALL.finditer(text))

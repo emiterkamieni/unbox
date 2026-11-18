@@ -3,3 +3,6 @@ build/
 dist/
 .DS_Store
 docs/
+windows/**/bin/
+windows/**/obj/
+publish/

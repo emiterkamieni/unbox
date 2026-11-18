@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>unbox-cli</AssemblyName>
+    <RootNamespace>Unbox.Cli</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\UnboxKit\UnboxKit.csproj" />
+  </ItemGroup>
+</Project>

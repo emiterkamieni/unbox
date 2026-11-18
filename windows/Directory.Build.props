@@ -1,0 +1,18 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <!-- Overridden by the release workflow with the tag version (-p:Version=1.2.3). -->
+    <Version>1.0.0</Version>
+    <Authors>emiterkamieni</Authors>
+    <Product>unbox</Product>
+    <Copyright>© 2026 emiterkamieni. GPL-3.0-only.</Copyright>
+    <!-- Lets the projects compile on macOS/Linux too (build only, they run on Windows). -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+</Project>
