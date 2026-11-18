@@ -38,9 +38,9 @@ public sealed partial class UpdateService : ObservableObject
         manager = string.IsNullOrEmpty(source)
             ? new UpdateManager(new GithubSource(Repository, null, false))
             : new UpdateManager(source);
-        state = manager.IsInstalled ? UpdateState.Idle : UpdateState.NotInstalled;
+        state = manager.IsInstalled || Demo.IsEnabled ? UpdateState.Idle : UpdateState.NotInstalled;
         timer.Tick += (_, _) => CheckIfDue();
-        Log.Write($"updates: source={(string.IsNullOrEmpty(source) ? Repository : source)} installed={manager.IsInstalled} version={CurrentVersion}");
+        if (!Demo.IsEnabled) Log.Write($"updates: source={(string.IsNullOrEmpty(source) ? Repository : source)} installed={manager.IsInstalled} version={CurrentVersion}");
     }
 
     public string CurrentVersion => manager.CurrentVersion?.ToString()
@@ -50,6 +50,7 @@ public sealed partial class UpdateService : ObservableObject
 
     public void Start()
     {
+        if (Demo.IsEnabled) return;
         timer.Start();
         CheckIfDue();
     }
@@ -64,6 +65,7 @@ public sealed partial class UpdateService : ObservableObject
 
     public async Task CheckAsync(bool userInitiated)
     {
+        if (Demo.IsEnabled) { State = UpdateState.UpToDate; return; }
         if (!manager.IsInstalled) { State = UpdateState.NotInstalled; return; }
         if (IsBusy) return;
         var previous = State;

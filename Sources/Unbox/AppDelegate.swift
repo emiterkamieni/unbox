@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let delegate = AppDelegate()
         app.delegate = delegate
         app.setActivationPolicy(.accessory)
+        Demo.applyAppearance()
         app.run()
     }
 
@@ -33,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.behavior = .transient
         popover.animates = true
         popover.delegate = self
+        popover.appearance = NSApp.appearance // nil unless the demo asks for light or dark
 
         Publishers.CombineLatest3(model.$items, model.$isApplying, model.$language)
             .receive(on: RunLoop.main)
@@ -45,10 +47,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             .store(in: &subscriptions)
 
         model.refresh(force: true)
-        updates.start()
+        if !Demo.isEnabled { updates.start() }
 
-        if CommandLine.arguments.contains("--open") {
+        if Demo.snapshotFolder != nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.takeSnapshots() }
+        } else if CommandLine.arguments.contains("--open") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in self?.togglePopover() }
+        }
+    }
+
+    /// `--demo --snapshot <folder>`: saves the list and the settings, then quits.
+    private func takeSnapshots() {
+        togglePopover()
+        guard let window = popover.contentViewController?.view.window else { exit(1) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            Demo.capture(window, named: "list")
+            self.model.showingSettings = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                Demo.capture(window, named: "settings")
+                NSApp.terminate(nil)
+            }
         }
     }
 

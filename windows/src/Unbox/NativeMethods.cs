@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using System.Text;
 using Microsoft.Win32;
 
 namespace Unbox;
@@ -49,8 +48,6 @@ internal static partial class NativeMethods
     [LibraryImport("dwmapi.dll")]
     public static partial int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref MARGINS margins);
 
-    [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)]
-    private static extern int StrFormatByteSizeEx(ulong size, int flags, StringBuilder buffer, uint bufferSize);
 
     public const int DwmUseImmersiveDarkMode = 20;
     public const int DwmWindowCornerPreference = 33;
@@ -58,14 +55,6 @@ internal static partial class NativeMethods
     public const int CornerRound = 2;
     public const int BackdropTransient = 3; // acrylic, as used by flyouts
 
-    /// <summary>The same format as File Explorer (e.g. “11,0 MB”).</summary>
-    public static string FormatBytes(long bytes)
-    {
-        var buffer = new StringBuilder(64);
-        return StrFormatByteSizeEx((ulong)Math.Max(0, bytes), 1, buffer, (uint)buffer.Capacity) == 0
-            ? buffer.ToString()
-            : $"{bytes} B";
-    }
 
     /// <summary>Monitor and work area (pixels) under the cursor, plus its DPI scale.</summary>
     public static (RECT Monitor, RECT Work, double Scale, POINT Cursor) CursorScreen()

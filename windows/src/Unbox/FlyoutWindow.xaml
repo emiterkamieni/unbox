@@ -165,7 +165,7 @@
                            TextAlignment="Center" />
             </StackPanel>
 
-            <ScrollViewer MaxHeight="470" VerticalScrollBarVisibility="Auto"
+            <ScrollViewer x:Name="ListScroller" MaxHeight="520" VerticalScrollBarVisibility="Auto"
                           Visibility="{Binding HasItems, Converter={StaticResource Visible}}">
                 <ItemsControl ItemsSource="{Binding Groups}" Margin="12,12,12,0">
                     <ItemsControl.ItemTemplate>

@@ -38,7 +38,7 @@ public sealed partial class ItemViewModel(OfflineItem item, AppModel owner, bool
         }
     }
 
-    public string SizeText => Size is long bytes ? NativeMethods.FormatBytes(bytes) : "…";
+    public string SizeText => Size is long bytes ? L10n.Bytes(bytes) : "…";
     public bool ShowsSize => Activity == RowActivity.None;
 
     public string CheckboxTooltip => KeepOffline
@@ -75,7 +75,7 @@ public sealed class GroupViewModel(string name, IReadOnlyList<ItemViewModel> ite
     public string Name { get; } = name;
     public IReadOnlyList<ItemViewModel> Items { get; } = items;
     public long? TotalSize => Items.All(item => item.Size.HasValue) ? Items.Sum(item => item.Size!.Value) : null;
-    public string SizeText => TotalSize is long bytes ? NativeMethods.FormatBytes(bytes) : "";
+    public string SizeText => TotalSize is long bytes ? L10n.Bytes(bytes) : "";
 }
 
 public sealed record Choice<T>(T Value, string Title);

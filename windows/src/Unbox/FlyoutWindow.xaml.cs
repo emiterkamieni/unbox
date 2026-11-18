@@ -11,6 +11,7 @@ namespace Unbox;
 public partial class FlyoutWindow : Window
 {
     private const double Margin_ = 12;
+    private const double ListMaxHeight = 520;
     private readonly AppModel model;
     private DateTime hiddenAt;
     private double? anchoredBottom;
@@ -20,11 +21,14 @@ public partial class FlyoutWindow : Window
         this.model = model;
         DataContext = model;
         InitializeComponent();
-        Deactivated += (_, _) => HideFlyout();
+        Deactivated += (_, _) => { if (!StaysOpen) HideFlyout(); };
         SizeChanged += (_, _) => KeepAnchored();
         SourceInitialized += (_, _) => ApplyWindowStyle();
         PreviewKeyDown += (_, args) => { if (args.Key == Key.Escape) HideFlyout(); };
     }
+
+    /// <summary>Snapshots: keep the flyout visible even when another window takes the focus.</summary>
+    public bool StaysOpen { get; set; }
 
     public void Toggle()
     {
@@ -42,6 +46,7 @@ public partial class FlyoutWindow : Window
         Opacity = 0;
         Show();
         UpdateLayout();
+        FitListToScreen();
         PlaceNearTray(nearCursor);
         Opacity = 1;
         Activate();
@@ -54,6 +59,16 @@ public partial class FlyoutWindow : Window
         hiddenAt = DateTime.Now;
         Hide();
         model.PopoverClosed();
+    }
+
+    /// <summary>The list gets as much height as the screen allows, up to ListMaxHeight.</summary>
+    private void FitListToScreen()
+    {
+        var (_, work, scale, _) = NativeMethods.CursorScreen();
+        double available = (work.Bottom - work.Top) / scale - 2 * Margin_;
+        double chrome = ActualHeight - ListScroller.ActualHeight;
+        ListScroller.MaxHeight = Math.Clamp(available - chrome, 160, ListMaxHeight);
+        UpdateLayout();
     }
 
     /// <summary>Above the taskbar at the click position, like other notification area flyouts.</summary>

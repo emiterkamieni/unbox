@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Unbox;
 
@@ -12,6 +13,9 @@ public sealed class Settings
     public bool NotifyAboutUpdates { get; set; } = true;
     public DateTime? LastUpdateCheck { get; set; }
     public string? NotifiedVersion { get; set; }
+
+    /// <summary>Demo mode: never written to disk.</summary>
+    [JsonIgnore] public bool IsTransient { get; init; }
 
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "unbox", "settings.json");
@@ -30,6 +34,7 @@ public sealed class Settings
 
     public void Save()
     {
+        if (IsTransient) return;
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);

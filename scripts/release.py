@@ -28,6 +28,14 @@ REPOSITORY = "emiterkamieni/unbox"
 INFO_PLIST = ROOT / "Support" / "Info.plist"
 DIST = ROOT / "dist"
 KEY_ACCOUNT = "unbox-Releases"
+RELEASE_FOOTER = f"""
+
+---
+
+Check the downloads against `SHA256SUMS` · [Install on macOS](https://github.com/{REPOSITORY}#install-on-macos) · \
+[Install on Windows](https://github.com/{REPOSITORY}#install-on-windows) · \
+[Code signing policy](https://github.com/{REPOSITORY}#code-signing-policy)
+"""
 
 
 def run(*command, capture=False, cwd=ROOT):
@@ -168,8 +176,11 @@ def main():
         tag = f"v{args.version}"
         run("git", "tag", "-a", tag, "-m", f"unbox {args.version}")
         run("git", "push", "origin", tag)
+        # The release page also names the checksums and the code signing policy (a SignPath requirement).
+        page_notes = DIST / "release-notes.md"
+        page_notes.write_text(notes_file.read_text(encoding="utf-8").rstrip() + RELEASE_FOOTER, encoding="utf-8")
         run("gh", "release", "create", tag, archive, feed, DIST / "SHA256SUMS", "--repo", REPOSITORY,
-            "--verify-tag", "--title", f"unbox {args.version}", "--notes-file", notes_file)
+            "--verify-tag", "--title", f"unbox {args.version}", "--notes-file", page_notes)
         print(f"Published https://github.com/{REPOSITORY}/releases/tag/{tag}")
 
 

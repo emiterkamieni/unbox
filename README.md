@@ -17,6 +17,29 @@ Windows (x64 and Arm)
  · [Report an issue](https://github.com/emiterkamieni/unbox/issues)
  · [Polski](README.pl.md)
 
+<table>
+  <tr>
+    <th width="50%">macOS</th>
+    <th width="50%">Windows</th>
+  </tr>
+  <tr>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset=".github/screenshots/macos-list-dark.png">
+        <img src=".github/screenshots/macos-list.png" alt="unbox in the macOS menu bar: folders and files kept offline, grouped by client, two of them unchecked to free 21.1 GB">
+      </picture>
+    </td>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset=".github/screenshots/windows-list-dark.png">
+        <img src=".github/screenshots/windows-list.png" alt="unbox in the Windows notification area: folders and files kept offline, grouped by client, two of them unchecked to free 21.1 GB">
+      </picture>
+    </td>
+  </tr>
+</table>
+
+<sub>The screenshots show sample data from the built-in demo mode.</sub>
+
 ## Features
 
 - **Everything that is offline, in one list.** Folders and files kept offline by Box Drive, grouped by
@@ -57,9 +80,11 @@ Windows (x64 and Arm)
 
 1. Download `unbox-win-x64-Setup.exe` (most PCs) or `unbox-win-arm64-Setup.exe` (Arm PCs such as
    Snapdragon laptops) from the [latest release](https://github.com/emiterkamieni/unbox/releases/latest).
+   To verify the download, compare the output of `Get-FileHash .\unbox-win-x64-Setup.exe` in PowerShell
+   with its line in `SHA256SUMS`.
 2. Run it. unbox installs for your user only, without administrator rights, and starts right away.
-   The installer is **not code-signed yet**, so Microsoft Defender SmartScreen may show *Windows protected
-   your PC* – click **More info → Run anyway**.
+   Until code signing is in place (see the [code signing policy](#code-signing-policy)), Microsoft Defender
+   SmartScreen may show *Windows protected your PC* – click **More info → Run anyway**.
 3. Windows hides new notification area icons in the overflow menu (the **^** next to the clock). Drag the
    unbox icon onto the taskbar, or turn it on in **Settings → Personalization → Taskbar → Other system tray
    icons**. Starting unbox again from the Start menu also opens its panel.
@@ -84,6 +109,27 @@ You can still make items available offline with Box Drive in Finder / File Explo
 automatically.
 
 ### Settings
+
+<table>
+  <tr>
+    <th width="50%">macOS</th>
+    <th width="50%">Windows</th>
+  </tr>
+  <tr>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset=".github/screenshots/macos-settings-dark.png">
+        <img src=".github/screenshots/macos-settings.png" alt="unbox settings on macOS">
+      </picture>
+    </td>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset=".github/screenshots/windows-settings-dark.png">
+        <img src=".github/screenshots/windows-settings.png" alt="unbox settings on Windows">
+      </picture>
+    </td>
+  </tr>
+</table>
 
 | Setting | |
 | --- | --- |
@@ -122,8 +168,10 @@ format, unbox falls back to asking the system about each downloaded folder (slow
 
 ### Privacy
 
-unbox works entirely on your computer. Its only network requests are update checks against this GitHub
-repository – once a day when *Notify about new versions* is on, and when you click *Check for Updates…*.
+unbox works entirely on your computer and does not collect or send any personal data. Its only network
+requests are update checks against this repository's GitHub Releases – once every 24 hours while *Notify about
+new versions* is on (the default), and when you click *Check for Updates…*. These requests are subject to the
+[GitHub Privacy Statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement).
 No analytics, no accounts.
 
 ### Limitations
@@ -136,6 +184,31 @@ No analytics, no accounts.
 
 unbox is an independent project and is not affiliated with or endorsed by Box, Inc.
 Box and Box Drive are trademarks of Box, Inc.
+
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by
+[SignPath Foundation](https://signpath.org).
+
+> [!NOTE]
+> Signing through the SignPath Foundation program is being set up. Until unbox is approved, the Windows
+> downloads are not signed.
+
+- **Windows:** unbox's own program files (`unbox.exe`, `unbox.dll`, `UnboxKit.dll`) and the installers
+  (`unbox-win-*-Setup.exe`) are signed. They are built from this repository by
+  [GitHub Actions](.github/workflows/windows.yml), and each release is approved by hand before it is signed
+  ([signing configuration](.signpath/)). Components from other projects are included as published by their
+  authors: the .NET runtime (signed by Microsoft) and Velopack's `Update.exe`.
+- **macOS:** the app is ad-hoc signed and not notarized. Updates are accepted only with a valid EdDSA signature
+  from this project's key (Sparkle).
+
+Team roles:
+
+- Committers and reviewers: [emiterkamieni](https://github.com/emiterkamieni)
+- Approvers: [emiterkamieni](https://github.com/emiterkamieni)
+
+Privacy policy: unbox does not collect or transfer any personal data; see [Privacy](#privacy) for the update
+checks, the only network requests it makes.
 
 ## Building from source
 
@@ -162,6 +235,19 @@ dotnet publish windows/src/Unbox/Unbox.csproj -c Release -r win-x64 --self-conta
 The projects also compile on macOS and Linux (`EnableWindowsTargeting`), but they run on Windows only.
 Setting the environment variable `UNBOX_UPDATE_SOURCE` to a folder with Velopack packages makes an installed
 app update from there instead of GitHub, which is useful for testing.
+
+### Demo mode and screenshots
+
+Both apps have a demo mode with invented folders and files that never touches Box Drive, keeps its settings
+to itself and does not check for updates: `unbox.app/Contents/MacOS/unbox --demo` and `unbox.exe --demo`.
+The screenshots in this README come from it:
+
+```sh
+scripts/screenshots.sh mac                    # builds unbox and saves the macOS popover, light and dark
+```
+
+On Windows, `unbox.exe --demo --language en --theme light --snapshot <folder>` (and `--theme dark`) renders
+the flyout at 2x; `scripts/screenshots.sh windows <folder>` then adds the window frame and shadow.
 
 ### Command line tool
 

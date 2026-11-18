@@ -31,13 +31,16 @@ public sealed partial class AppModel : ObservableObject
         this.settings = settings;
         Updates = updates;
         L10n.Configure(AppLanguages.FromCode(settings.Language));
-        try
+        if (!Demo.IsEnabled)
         {
-            service = new OfflineService();
-        }
-        catch (UnboxException error)
-        {
-            loadError = error.Message;
+            try
+            {
+                service = new OfflineService();
+            }
+            catch (UnboxException error)
+            {
+                loadError = error.Message;
+            }
         }
         NetworkChange.NetworkAvailabilityChanged += (_, args) =>
             Application.Current.Dispatcher.Invoke(() => IsOnline = args.IsAvailable);
@@ -139,8 +142,13 @@ public sealed partial class AppModel : ObservableObject
 
     public bool LaunchAtLogin
     {
-        get => LoginItem.IsEnabled;
-        set { LoginItem.Set(value); OnPropertyChanged(); }
+        get => Demo.IsEnabled ? Demo.LaunchAtLogin : LoginItem.IsEnabled;
+        set
+        {
+            if (Demo.IsEnabled) Demo.LaunchAtLogin = value;
+            else LoginItem.Set(value);
+            OnPropertyChanged();
+        }
     }
 
     public bool NotifyAboutUpdates
@@ -159,7 +167,7 @@ public sealed partial class AppModel : ObservableObject
 
     // MARK: Derived state
 
-    public bool CanChangeOfflineState => service != null;
+    public bool CanChangeOfflineState => service != null || Demo.IsEnabled;
     public bool HasItems => items.Count > 0;
     public int ItemCount => items.Count;
     public bool IsEmpty => items.Count == 0;
@@ -176,7 +184,7 @@ public sealed partial class AppModel : ObservableObject
                                  : L10n.Text("Nothing is downloaded for offline use", "Nic nie jest pobrane offline");
             var count = Plural.Items(items.Count);
             return Total(items) is long size
-                ? L10n.Format("%@ offline · %@ on disk", "%@ offline · %@ na dysku", count, NativeMethods.FormatBytes(size))
+                ? L10n.Format("%@ offline · %@ on disk", "%@ offline · %@ na dysku", count, L10n.Bytes(size))
                 : L10n.Format("%@ offline", "%@ offline", count);
         }
     }
@@ -189,7 +197,7 @@ public sealed partial class AppModel : ObservableObject
 
     public string SelectionSizeText =>
         FreeSpace && Total(items.Where(item => !item.KeepOffline)) is long size
-            ? L10n.Format("Frees about %@", "Zwolni ok. %@", NativeMethods.FormatBytes(size))
+            ? L10n.Format("Frees about %@", "Zwolni ok. %@", L10n.Bytes(size))
             : "";
 
     public string FooterHint => L10n.Text("Uncheck an item to stop keeping it offline.", "Odznacz element, aby przestał być dostępny offline.");
@@ -250,8 +258,13 @@ public sealed partial class AppModel : ObservableObject
 
     public void Refresh(bool force = false)
     {
-        IsBoxRunning = OfflineService.IsBoxRunning;
+        IsBoxRunning = Demo.IsEnabled || OfflineService.IsBoxRunning;
         OnPropertyChanged(nameof(LaunchAtLogin));
+        if (Demo.IsEnabled && !IsApplying)
+        {
+            LoadDemo();
+            return;
+        }
         if (service == null || IsLoading || IsApplying) return;
         if (!force && lastRefresh is DateTime last && DateTime.Now - last < TimeSpan.FromSeconds(5)) return;
         _ = RefreshAsync(service);
@@ -287,6 +300,17 @@ public sealed partial class AppModel : ObservableObject
         {
             IsLoading = false;
         }
+    }
+
+    private void LoadDemo()
+    {
+        bool first = lastRefresh == null;
+        var unchecked_ = items.Where(item => !item.KeepOffline).Select(item => item.Item.Id).ToHashSet();
+        items = [.. Demo.Items.Select(item => new ItemViewModel(item, this,
+            keepOffline: first ? !Demo.StartsOnlineOnly(item) : !unchecked_.Contains(item.Id)) { Size = Demo.Size(item) })];
+        lastRefresh = DateTime.Now;
+        RebuildGroups();
+        NotifyListChanged();
     }
 
     private void NotifyListChanged()
@@ -328,7 +352,7 @@ public sealed partial class AppModel : ObservableObject
     [RelayCommand]
     private async Task Apply()
     {
-        if (service == null || IsApplying) return;
+        if ((service == null && !Demo.IsEnabled) || IsApplying) return;
         var targets = items.Where(item => !item.KeepOffline).ToList();
         if (targets.Count == 0) return;
 
@@ -346,9 +370,16 @@ public sealed partial class AppModel : ObservableObject
             target.Activity = RowActivity.Working;
             try
             {
-                var outcome = await service.MakeOnlineOnlyAsync(target.Item, freeSpace);
-                freed += outcome.FreedBytes;
-                kept += outcome.FilesKeptLocally;
+                if (service != null)
+                {
+                    var outcome = await service.MakeOnlineOnlyAsync(target.Item, freeSpace);
+                    freed += outcome.FreedBytes;
+                    kept += outcome.FilesKeptLocally;
+                }
+                else
+                {
+                    freed += await Demo.MakeOnlineOnlyAsync(target.Item, freeSpace, target.Size ?? 0);
+                }
                 target.Activity = RowActivity.Done;
             }
             catch (Exception error) when (error is UnboxException or IOException or UnauthorizedAccessException)
@@ -411,7 +442,7 @@ public sealed partial class AppModel : ObservableObject
         if (done > 0)
         {
             parts.Add(L10n.Format("Online-only: %@.", "Tylko online: %@.", Plural.Items(done)));
-            if (freeSpace) parts.Add(L10n.Format("Freed %@.", "Zwolniono %@.", NativeMethods.FormatBytes(freed)));
+            if (freeSpace) parts.Add(L10n.Format("Freed %@.", "Zwolniono %@.", L10n.Bytes(freed)));
         }
         if (freeSpace && kept > 0) parts.Add(Plural.FilesKept(kept));
         if (failures.Count > 0)

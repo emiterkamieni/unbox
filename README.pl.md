@@ -14,6 +14,29 @@ usuwając pobrane kopie.
 **[Pobierz](https://github.com/emiterkamieni/unbox/releases/latest)** dla macOS (Apple Silicon) i Windows
 (x64 i Arm) · [English](README.md)
 
+<table>
+  <tr>
+    <th width="50%">macOS</th>
+    <th width="50%">Windows</th>
+  </tr>
+  <tr>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset=".github/screenshots/macos-list-dark.png">
+        <img src=".github/screenshots/macos-list.png" alt="unbox w pasku menu macOS: lista folderów i plików offline">
+      </picture>
+    </td>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset=".github/screenshots/windows-list-dark.png">
+        <img src=".github/screenshots/windows-list.png" alt="unbox w zasobniku systemowym Windows: lista folderów i plików offline">
+      </picture>
+    </td>
+  </tr>
+</table>
+
+<sub>Zrzuty ekranu pokazują przykładowe dane z wbudowanego trybu demonstracyjnego.</sub>
+
 ## Funkcje
 
 - Lista folderów i plików offline pogrupowana według folderów najwyższego poziomu (np. klientów), z miejscem
@@ -42,9 +65,9 @@ Wymagania: Windows 10 22H2 lub Windows 11 (x64 albo Arm), nowy Box Drive dla Win
 
 1. Pobierz `unbox-win-x64-Setup.exe` (większość komputerów) albo `unbox-win-arm64-Setup.exe` (komputery z
    procesorem Arm) z [najnowszego wydania](https://github.com/emiterkamieni/unbox/releases/latest).
-2. Uruchom instalator. unbox instaluje się tylko dla Ciebie, bez uprawnień administratora. Instalator nie jest
-   jeszcze podpisany, więc SmartScreen może pokazać *System Windows ochronił ten komputer* – kliknij
-   **Więcej informacji → Uruchom mimo to**.
+2. Uruchom instalator. unbox instaluje się tylko dla Ciebie, bez uprawnień administratora. Dopóki nie ruszy
+   podpisywanie kodu (zob. [Code signing policy](README.md#code-signing-policy)), SmartScreen może pokazać
+   *System Windows ochronił ten komputer* – kliknij **Więcej informacji → Uruchom mimo to**.
 3. Windows chowa nowe ikony w zasobniku pod strzałką **^** obok zegara. Przeciągnij ikonę unbox na pasek
    zadań albo włącz ją w **Ustawienia → Personalizacja → Pasek zadań → Inne ikony zasobnika systemowego**.
 

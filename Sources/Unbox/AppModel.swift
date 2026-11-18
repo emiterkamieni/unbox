@@ -86,11 +86,15 @@ final class AppModel: ObservableObject {
         language = savedLanguage
         Self.apply(savedLanguage)
 
-        do {
-            service = try OfflineService()
-        } catch {
+        if Demo.isEnabled {
             service = nil
-            loadError = error.localizedDescription
+        } else {
+            do {
+                service = try OfflineService()
+            } catch {
+                service = nil
+                loadError = error.localizedDescription
+            }
         }
 
         let model = self
@@ -103,7 +107,7 @@ final class AppModel: ObservableObject {
 
     // MARK: - Derived state
 
-    var canChangeOfflineState: Bool { service?.canChangeOfflineState ?? false }
+    var canChangeOfflineState: Bool { Demo.isEnabled || (service?.canChangeOfflineState ?? false) }
 
     /// Groups and the items inside them follow the same order: alphabetical, or largest first.
     /// While sizes are still being measured, size sorting falls back to names.
@@ -153,8 +157,17 @@ final class AppModel: ObservableObject {
     // MARK: - Actions
 
     func refresh(force: Bool = false) {
-        isBoxRunning = !NSRunningApplication.runningApplications(withBundleIdentifier: "com.box.desktop").isEmpty
+        isBoxRunning = Demo.isEnabled || !NSRunningApplication.runningApplications(withBundleIdentifier: "com.box.desktop").isEmpty
         refreshLoginItemState()
+        if Demo.isEnabled {
+            guard !isApplying else { return }
+            if lastRefresh == nil { markedOnlineOnly = Demo.initialSelection }
+            items = Demo.items
+            sizes = Demo.sizes
+            markedOnlineOnly.formIntersection(Set(items.map(\.id)))
+            lastRefresh = Date()
+            return
+        }
         guard let service, !isLoading, !isApplying else { return }
         if !force, let lastRefresh, Date().timeIntervalSince(lastRefresh) < 5 { return }
 
@@ -176,7 +189,7 @@ final class AppModel: ObservableObject {
     }
 
     func apply() {
-        guard let service, !isApplying else { return }
+        guard service != nil || Demo.isEnabled, !isApplying else { return }
         let targets = items.filter { markedOnlineOnly.contains($0.id) }
         guard !targets.isEmpty else { return }
 
@@ -192,9 +205,13 @@ final class AppModel: ObservableObject {
             for item in targets {
                 activity[item.id] = .working
                 do {
-                    let outcome = try await service.makeOnlineOnly(item, freeSpace: freeSpace)
-                    freed += outcome.freedBytes
-                    keptLocally += outcome.filesKeptLocally
+                    if let service {
+                        let outcome = try await service.makeOnlineOnly(item, freeSpace: freeSpace)
+                        freed += outcome.freedBytes
+                        keptLocally += outcome.filesKeptLocally
+                    } else {
+                        freed += await Demo.makeOnlineOnly(item, freeSpace: freeSpace, size: sizes[item.id] ?? 0)
+                    }
                     activity[item.id] = .done
                 } catch {
                     failures.append("\(item.name): \(error.localizedDescription)")
@@ -231,6 +248,11 @@ final class AppModel: ObservableObject {
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
+        if Demo.isEnabled {
+            Demo.launchAtLogin = enabled
+            refreshLoginItemState()
+            return
+        }
         do {
             try LoginItem.set(enabled)
             launchAtLoginError = nil
@@ -245,6 +267,11 @@ final class AppModel: ObservableObject {
     }
 
     private func refreshLoginItemState() {
+        if Demo.isEnabled {
+            launchAtLogin = Demo.launchAtLogin
+            launchAtLoginNeedsApproval = false
+            return
+        }
         launchAtLogin = LoginItem.isEnabled || LoginItem.needsApproval
         launchAtLoginNeedsApproval = LoginItem.needsApproval
     }

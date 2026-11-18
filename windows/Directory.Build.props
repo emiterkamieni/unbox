@@ -7,6 +7,8 @@
     <LangVersion>latest</LangVersion>
     <!-- Overridden by the release workflow with the tag version (-p:Version=1.2.3). -->
     <Version>1.0.0</Version>
+    <!-- "1.2.3" in the file properties, not "1.2.3+<commit>" (also required for signing). -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Authors>emiterkamieni</Authors>
     <Product>unbox</Product>
     <Copyright>© 2026 emiterkamieni. GPL-3.0-only.</Copyright>

@@ -120,6 +120,31 @@ public static class L10n
         };
     }
 
+    /// <summary>
+    /// Sizes like File Explorer shows them (binary units, three significant digits), but with the
+    /// number format of the interface language rather than the system's, as on macOS.
+    /// </summary>
+    public static string Bytes(long bytes)
+    {
+        string[] units = Effective switch
+        {
+            AppLanguage.French => ["o", "Ko", "Mo", "Go", "To"],
+            AppLanguage.Ukrainian => ["Б", "КБ", "МБ", "ГБ", "ТБ"],
+            _ => ["B", "KB", "MB", "GB", "TB"],
+        };
+        double value = Math.Max(0, bytes);
+        if (value < 1024) return $"{value.ToString("0", Culture)} {units[0]}";
+        int unit = 1;
+        value /= 1024;
+        while (value >= 999.5 && unit < units.Length - 1)
+        {
+            value /= 1024;
+            unit++;
+        }
+        string format = value < 9.995 ? "0.00" : value < 99.95 ? "0.0" : "0";
+        return $"{value.ToString(format, Culture)} {units[unit]}";
+    }
+
     /// <summary>Replaces %@, %ld and %d in order; numbers use the interface culture.</summary>
     public static string Printf(string template, params object[] args)
     {

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SignPath artifact configuration "installers": the Velopack installers, which contain the
+     already signed binaries. The artifact is the folder unsigned/installers from .github/workflows/windows.yml. -->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="version" required="true" />
+  </parameters>
+  <zip-file>
+    <pe-file-set product-name="unbox" product-version="${version}">
+      <include path="unbox-win-x64-Setup.exe" />
+      <include path="unbox-win-arm64-Setup.exe" />
+      <for-each>
+        <authenticode-sign />
+      </for-each>
+    </pe-file-set>
+  </zip-file>
+</artifact-configuration>
