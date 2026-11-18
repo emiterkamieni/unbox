@@ -63,6 +63,11 @@ jobs:
           foreach ($rid in 'win-x64', 'win-arm64') {
             dotnet publish windows/src/Unbox/Unbox.csproj -c Release -r $rid --self-contained -p:Version=$env:VERSION -o "publish/$rid"
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            # The file properties must show the plain release version (no "+<commit>").
+            foreach ($file in 'unbox.exe', 'unbox.dll', 'UnboxKit.dll') {
+              $product = (Get-Item "publish/$rid/$file").VersionInfo.ProductVersion
+              if ($product -ne $env:VERSION) { throw "$rid/$file has version '$product', expected '$env:VERSION'" }
+            }
           }
 
       - name: Package with Velopack
@@ -118,3 +123,14 @@ jobs:
           }
           [IO.File]::WriteAllText("$PWD/checksums/SHA256SUMS", ($lines -join "`n") + "`n")
           gh release upload $env:TAG checksums/SHA256SUMS --repo ${{ github.repository }} --clobber
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+          # Every file of the release (macOS and Windows) must be listed with the hash GitHub reports for it.
+          $sums = @{}
+          foreach ($line in $lines) { $hash, $name = $line -split '  ', 2; $sums[$name] = $hash }
+          $assets = gh api "repos/${{ github.repository }}/releases/tags/$env:TAG" --jq '.assets[] | select(.name != "SHA256SUMS") | "\(.digest) \(.name)"'
+          foreach ($asset in $assets) {
+            $digest, $name = $asset -split ' ', 2
+            if ($sums[$name] -ne $digest.Replace('sha256:', '')) { throw "SHA256SUMS does not match the release file $name" }
+          }
+          "SHA256SUMS covers all $(@($assets).Count) files of the release"
