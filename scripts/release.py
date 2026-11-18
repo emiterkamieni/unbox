@@ -3,6 +3,7 @@
 
     scripts/release.py 1.0.1 2               # build into dist/ only
     scripts/release.py 1.0.1 2 --publish     # also tag and create the GitHub release
+    scripts/release.py 1.0.1 --refresh-notes # rewrite the description of an existing GitHub release
 
 VERSION is the displayed version, BUILD the monotonic CFBundleVersion Sparkle compares.
 Release notes are read from release-notes/<VERSION>.md.
@@ -111,6 +112,40 @@ def notes_html(markdown):
     return "\n".join(blocks)
 
 
+# What people download (the other files are for the in-app updates), in the order of the table.
+DOWNLOADS = [
+    ("**macOS** – Apple silicon (M1 and later)", "unbox-{version}-macos-arm64.zip"),
+    ("**Windows** – Intel or AMD, installer (recommended)", "unbox-win-x64-Setup.exe"),
+    ("**Windows** – Arm, e.g. Snapdragon, installer", "unbox-win-arm64-Setup.exe"),
+    ("**Windows** – Intel or AMD, portable (runs without installing)", "unbox-win-x64-Portable.zip"),
+    ("**Windows** – Arm, portable (runs without installing)", "unbox-win-arm64-Portable.zip"),
+]
+
+
+def page_notes(version, notes, available=None):
+    """The GitHub release description: which file to download, the release notes, then the links.
+    The in-app update window (Sparkle) shows only the release notes."""
+    rows = [(label, name.format(version=version)) for label, name in DOWNLOADS]
+    if available is not None:
+        rows = [(label, name) for label, name in rows if name in available]
+    base = f"https://github.com/{REPOSITORY}/releases/download/v{version}"
+    table = "\n".join(f"| {label} | [{name}]({base}/{name}) |" for label, name in rows)
+    return (f"### Which file do I download?\n\n| Computer | File |\n| --- | --- |\n{table}\n\n"
+            "The other files are used by the in-app updates.\n\n"
+            f"### What's new\n\n{notes.strip()}{RELEASE_FOOTER}")
+
+
+def refresh_notes(version, notes_file):
+    tag = f"v{version}"
+    assets = set(run("gh", "release", "view", tag, "--repo", REPOSITORY, "--json", "assets",
+                     "--jq", ".assets[].name", capture=True).splitlines())
+    target = DIST / "release-notes.md"
+    DIST.mkdir(exist_ok=True)
+    target.write_text(page_notes(version, notes_file.read_text(encoding="utf-8"), assets), encoding="utf-8")
+    run("gh", "release", "edit", tag, "--repo", REPOSITORY, "--notes-file", target)
+    print(f"Updated the description of https://github.com/{REPOSITORY}/releases/tag/{tag}")
+
+
 def appcast(version, build, minimum_system, url, length, signature, notes):
     return f"""<?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
@@ -137,8 +172,9 @@ def appcast(version, build, minimum_system, url, length, signature, notes):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("version")
-    parser.add_argument("build", type=int)
+    parser.add_argument("build", type=int, nargs="?")
     parser.add_argument("--publish", action="store_true", help="tag the commit and create the GitHub release")
+    parser.add_argument("--refresh-notes", action="store_true", help="rewrite the description of an existing release")
     args = parser.parse_args()
 
     if not re.fullmatch(r"\d+\.\d+\.\d+", args.version):
@@ -146,6 +182,11 @@ def main():
     notes_file = ROOT / "release-notes" / f"{args.version}.md"
     if not notes_file.exists():
         sys.exit(f"Missing release notes: {notes_file.relative_to(ROOT)}")
+    if args.refresh_notes:
+        refresh_notes(args.version, notes_file)
+        return
+    if args.build is None:
+        parser.error("BUILD is required unless --refresh-notes is given")
 
     info = set_version(args.version, args.build)
     if args.publish and run("git", "status", "--porcelain", capture=True):
@@ -175,11 +216,11 @@ def main():
         tag = f"v{args.version}"
         run("git", "tag", "-a", tag, "-m", f"unbox {args.version}")
         run("git", "push", "origin", tag)
-        # The release page also points to the checksums and the installation steps.
-        page_notes = DIST / "release-notes.md"
-        page_notes.write_text(notes_file.read_text(encoding="utf-8").rstrip() + RELEASE_FOOTER, encoding="utf-8")
+        # The Windows files in the table are added by the Windows workflow a few minutes later.
+        description = DIST / "release-notes.md"
+        description.write_text(page_notes(args.version, notes_file.read_text(encoding="utf-8")), encoding="utf-8")
         run("gh", "release", "create", tag, archive, feed, DIST / "SHA256SUMS", "--repo", REPOSITORY,
-            "--verify-tag", "--title", f"unbox {args.version}", "--notes-file", page_notes)
+            "--verify-tag", "--title", f"unbox {args.version}", "--notes-file", description)
         print(f"Published https://github.com/{REPOSITORY}/releases/tag/{tag}")
 
 

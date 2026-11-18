@@ -251,7 +251,11 @@ screenshots.
 scripts/release.py 1.2.0 3             # sets the version, builds and signs the macOS app into dist/
 git commit -am "Release 1.2.0"
 scripts/release.py 1.2.0 3 --publish   # tags the commit and creates the GitHub release
+scripts/release.py 1.2.0 --refresh-notes   # rewrites the description of an existing release
 ```
+
+The description of each release starts with a table of the five files people download; the remaining files
+are for the in-app updates.
 
 Pushing the tag starts the [Windows workflow](.github/workflows/windows.yml): GitHub Actions builds the x64 and
 Arm versions, packages them with Velopack (including a delta from the previous release) and adds the
