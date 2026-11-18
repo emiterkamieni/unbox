@@ -19,17 +19,13 @@ Windows (x64 and Arm)
 
 <table>
   <tr>
-    <th width="50%">macOS</th>
-    <th width="50%">Windows</th>
-  </tr>
-  <tr>
-    <td>
+    <td width="50%" align="center"><b>macOS</b><br>
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset=".github/screenshots/macos-list-dark.png">
         <img src=".github/screenshots/macos-list.png" alt="unbox in the macOS menu bar: folders and files kept offline, grouped by client, two of them unchecked to free 21.1 GB">
       </picture>
     </td>
-    <td>
+    <td width="50%" align="center"><b>Windows</b><br>
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset=".github/screenshots/windows-list-dark.png">
         <img src=".github/screenshots/windows-list.png" alt="unbox in the Windows notification area: folders and files kept offline, grouped by client, two of them unchecked to free 21.1 GB">
@@ -112,17 +108,13 @@ automatically.
 
 <table>
   <tr>
-    <th width="50%">macOS</th>
-    <th width="50%">Windows</th>
-  </tr>
-  <tr>
-    <td>
+    <td width="50%" align="center"><b>macOS</b><br>
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset=".github/screenshots/macos-settings-dark.png">
         <img src=".github/screenshots/macos-settings.png" alt="unbox settings on macOS">
       </picture>
     </td>
-    <td>
+    <td width="50%" align="center"><b>Windows</b><br>
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset=".github/screenshots/windows-settings-dark.png">
         <img src=".github/screenshots/windows-settings.png" alt="unbox settings on Windows">

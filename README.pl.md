@@ -16,17 +16,13 @@ usuwając pobrane kopie.
 
 <table>
   <tr>
-    <th width="50%">macOS</th>
-    <th width="50%">Windows</th>
-  </tr>
-  <tr>
-    <td>
+    <td width="50%" align="center"><b>macOS</b><br>
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset=".github/screenshots/macos-list-dark.png">
         <img src=".github/screenshots/macos-list.png" alt="unbox w pasku menu macOS: lista folderów i plików offline">
       </picture>
     </td>
-    <td>
+    <td width="50%" align="center"><b>Windows</b><br>
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset=".github/screenshots/windows-list-dark.png">
         <img src=".github/screenshots/windows-list.png" alt="unbox w zasobniku systemowym Windows: lista folderów i plików offline">
