@@ -66,8 +66,9 @@ enum Demo {
 
     // MARK: - Snapshots
 
-    /// Saves the popover content at 2x, drawn into a popover-shaped frame with a shadow (the screen
-    /// may be non-Retina, and a window capture would include whatever is behind the translucent popover).
+    /// Saves the popover content at 2x, drawn into a popover-shaped frame (the screen may be non-Retina,
+    /// and a window capture would include whatever is behind the translucent popover). The shadow is
+    /// added by scripts/screenshots.sh, the same one as for the Windows screenshots.
     static func capture(_ window: NSWindow, named name: String) {
         guard let folder = snapshotFolder, let content = window.contentView else { return }
         let appearance = window.effectiveAppearance
@@ -77,7 +78,7 @@ enum Demo {
         guard let contentRep = bitmap(size: size, scale: scale) else { return }
         content.cacheDisplay(in: content.bounds, to: contentRep)
 
-        let margin: CGFloat = 40, arrow: CGFloat = 10, radius: CGFloat = 12
+        let margin: CGFloat = 1, arrow: CGFloat = 10, radius: CGFloat = 12 // the margin keeps the hairline border
         let canvas = NSSize(width: size.width + margin * 2, height: size.height + margin * 2 + arrow)
         guard let rep = bitmap(size: canvas, scale: scale), let context = NSGraphicsContext(bitmapImageRep: rep) else { return }
         let body = NSRect(x: margin, y: margin, width: size.width, height: size.height)
@@ -86,19 +87,13 @@ enum Demo {
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = context
         appearance.performAsCurrentDrawingAppearance {
-            NSGraphicsContext.saveGraphicsState()
-            let shadow = NSShadow()
-            shadow.shadowBlurRadius = 20
-            shadow.shadowOffset = NSSize(width: 0, height: -6)
-            shadow.shadowColor = NSColor.black.withAlphaComponent(dark ? 0.55 : 0.22)
-            shadow.set()
             NSColor(white: dark ? 0.12 : 0.97, alpha: 1).setFill()
             outline.fill()
-            NSGraphicsContext.restoreGraphicsState()
 
             NSGraphicsContext.saveGraphicsState()
             outline.addClip()
-            contentRep.draw(in: body)
+            // Over the base colour (a plain draw(in:) would copy the content's transparency).
+            contentRep.draw(in: body, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: false, hints: nil)
             // The content brings its own base layer; the arrow gets the same one.
             NSRect(x: 0, y: body.maxY, width: canvas.width, height: arrow + 1).clip()
             NSColor.windowBackgroundColor.withAlphaComponent(0.7).setFill()

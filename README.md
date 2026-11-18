@@ -265,8 +265,10 @@ scripts/check-localization.py   # missing keys, placeholders and plural forms, f
 ### Icons
 
 `swift scripts/make-icons.swift` regenerates all icons from the SVG logo sources in `docs/`, which are not part
-of this repository: the macOS menu bar icon, logo and app icon (`Support/`), and the Windows app icon, tray
-icons and logo geometry (`windows/src/Unbox/Assets/`).
+of this repository: the macOS menu bar icon, logo and app icon (`Support/`), the Windows app icon, tray
+icons and logo geometry (`windows/src/Unbox/Assets/`), and the brand colour, taken from the logo's fill
+(`Sources/Unbox/BrandColor.swift` and `Brand.xaml`). Run `scripts/screenshots.sh` afterwards to update the
+screenshots.
 
 ### Releases
 

@@ -60,14 +60,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func takeSnapshots() {
         togglePopover()
         guard let window = popover.contentViewController?.view.window else { exit(1) }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+        whenKey(window) {
             Demo.capture(window, named: "list")
             self.model.showingSettings = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                Demo.capture(window, named: "settings")
-                NSApp.terminate(nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                self.whenKey(window) {
+                    Demo.capture(window, named: "settings")
+                    NSApp.terminate(nil)
+                }
             }
         }
+    }
+
+    /// Controls are drawn in their active colours only while the popover is the key window, and
+    /// macOS may delay activating an app that was started from a terminal.
+    private func whenKey(_ window: NSWindow, attempt: Int = 0, then action: @escaping () -> Void) {
+        if (NSApp.isActive && window.isKeyWindow && attempt >= 6) || attempt >= 60 {
+            if !window.isKeyWindow { FileHandle.standardError.write(Data("warning: the popover is not active\n".utf8)) }
+            action()
+            return
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKey()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { self.whenKey(window, attempt: attempt + 1, then: action) }
     }
 
     @objc private func togglePopover() {

@@ -1,10 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// Logo assets generated from docs/*.svg by scripts/make-icons.swift.
+/// Logo assets generated from docs/*.svg by scripts/make-icons.swift (the colour is in BrandColor.swift).
 enum Brand {
-    static let blue = Color(red: 1 / 255, green: 121 / 255, blue: 253 / 255) // #0179FD
-
     static let symbol: NSImage = template("MenuBarIcon", fallback: "shippingbox")
     static let logo: NSImage = template("Logo", fallback: "shippingbox")
 
