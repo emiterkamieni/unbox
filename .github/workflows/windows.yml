@@ -105,9 +105,10 @@ jobs:
             if ($LASTEXITCODE -eq 0) { break }
             Start-Sleep -Seconds 15
           }
+          # Only what people download and what the app reads to update. Velopack's RELEASES-* (for apps
+          # migrating from Squirrel) and assets.*.json (for its deployment commands) are not needed.
           $files = foreach ($rid in 'win-x64', 'win-arm64') {
-            "releases/unbox-$rid-Setup.exe", "releases/unbox-$rid-Portable.zip",
-            "releases/releases.$rid.json", "releases/assets.$rid.json", "releases/RELEASES-$rid",
+            "releases/unbox-$rid-Setup.exe", "releases/unbox-$rid-Portable.zip", "releases/releases.$rid.json",
             "releases/unbox-$env:VERSION-$rid-full.nupkg", "releases/unbox-$env:VERSION-$rid-delta.nupkg"
           }
           $files = $files | Where-Object { Test-Path $_ }
